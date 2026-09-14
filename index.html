@@ -1,0 +1,757 @@
+<title>Electronic Box Control (Remote)</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="E-Box Control">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#0a0a0a;
+    --panel:#1a1a1a;
+    --panel2:#151515;
+    --border:#2a2a2a;
+    --text:#ffffff;
+    --muted:#9a9a9a;
+    --accent:#ff8a00;
+    --accent-dim:#3a2410;
+    --danger:#e0303a;
+    --online:#22c55e;
+  }
+  *{box-sizing:border-box}
+  body{font-family:sans-serif;background:var(--bg);color:var(--text);margin:0;padding:16px;font-size:16px}
+  h1{font-size:22px;margin:0 0 4px;font-weight:700}
+  .subtitle{font-size:13px;color:var(--muted);margin:0 0 12px}
+  .mono{font-family:ui-monospace,'SFMono-Regular',Menlo,monospace}
+
+  .connbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:14px}
+  .conndot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:middle;background:#e8a23d}
+  .conndot.ok{background:var(--online);box-shadow:0 0 6px var(--online)}
+  .conndot.err{background:var(--danger)}
+  .hubinfo{color:var(--muted);font-size:13px}
+  .lastaction{color:var(--muted);font-size:12.5px;width:100%;padding-top:6px;margin-top:2px;border-top:1px dashed var(--border)}
+
+  .tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .tab{padding:8px 16px;background:var(--panel);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);font-size:15px}
+  .tab.active{background:var(--set-color, var(--accent));color:#111;border-color:var(--set-color, var(--accent));font-weight:700}
+  .estop{background:#333;color:#fff;border:1px solid var(--border);padding:10px 18px;border-radius:8px;font-weight:bold;cursor:pointer;margin-bottom:12px;font-size:15px}
+  .estop.active{background:var(--danger);border-color:var(--danger)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+  .card{background:var(--panel);border-radius:12px;padding:12px;border:1px solid var(--border)}
+  .card h3{margin:0 0 8px;font-size:16px;color:var(--text)}
+  .row{display:flex;align-items:center;justify-content:space-between;margin:6px 0;font-size:14px;gap:6px;color:var(--muted)}
+  button.toggle{padding:5px 12px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--panel2);color:var(--text);font-size:14px;min-width:44px}
+  button.toggle.on{background:var(--panel2);border-color:var(--set-color, var(--accent));font-weight:700}
+  select{width:60px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:14px}
+  .allrow{background:linear-gradient(135deg,#201205,#141414);border:1px solid var(--border);border-left:4px solid var(--set-color, var(--accent));margin-bottom:10px}
+  .hidden{display:none}
+
+  /* วงกลมแสดงสีปัจจุบัน + เป็นตัวกดเปิด/ปิดรายการสี ในตัวเดียวกัน (ไม่ใช้ native color picker ของเครื่องแล้ว) */
+  .swatchbig{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);display:inline-block;vertical-align:middle;flex-shrink:0}
+  .palette{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 2px}
+  .swatch{width:18px;height:18px;border-radius:50%;border:1px solid var(--border);cursor:pointer;flex-shrink:0}
+
+  .colordd{margin:4px 0}
+  .colordd summary{cursor:pointer;color:var(--set-color, var(--accent));font-size:14px;list-style:none;display:flex;align-items:center;gap:6px}
+  .colordd summary::-webkit-details-marker{display:none}
+
+  /* สไลด์บาร์: ส่วนที่เลื่อนผ่านแล้วเป็นสีส้ม (--accent) ส่วนที่เหลือเป็นสีเข้ม (--panel2) ตามค่าปัจจุบัน */
+  input[type=range]{-webkit-appearance:none;appearance:none;width:90px;height:6px;background:transparent;outline:none;flex-shrink:0}
+  input[type=range]::-webkit-slider-runnable-track{
+    height:6px;border-radius:3px;
+    background:linear-gradient(to right, var(--set-color, var(--accent)) 0%, var(--set-color, var(--accent)) var(--val,100%), var(--panel2) var(--val,100%), var(--panel2) 100%);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--set-color, var(--accent));border:2px solid #fff;cursor:pointer;margin-top:-5px;
+  }
+  input[type=range]::-moz-range-track{
+    height:6px;border-radius:3px;
+    background:linear-gradient(to right, var(--set-color, var(--accent)) 0%, var(--set-color, var(--accent)) var(--val,100%), var(--panel2) var(--val,100%), var(--panel2) 100%);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;border-radius:50%;background:var(--set-color, var(--accent));border:2px solid #fff;cursor:pointer;
+  }
+
+  /* แท็บ Status: จุดสีบอกว่ากล่องนั้นออนไลน์ (เขียว) หรือออฟไลน์ (เทา) อยู่ */
+  .status-dot{width:12px;height:12px;border-radius:50%;display:inline-block;background:#555;flex-shrink:0}
+  .status-dot.online{background:#22c55e;box-shadow:0 0 6px #22c55e}
+  .status-dot.offline{background:#555}
+
+  /* ช่องกรอกตัวเลขเล็กๆ (จังหวะควัน / วินาที auto) และ label เช็คบ็อกซ์ Sync RGB1/RGB2 */
+  .miniinput{width:52px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:13px;padding:2px}
+  .synclabel{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer}
+  button.toggle.mode-auto{border-color:var(--set-color, var(--accent));font-weight:700}
+</style>
+</head>
+<body>
+<h1>Electronic Box Control</h1>
+<div class="subtitle">Remote · ควบคุมผ่านอินเทอร์เน็ต ไม่ต้องอยู่ WiFi โรงงาน</div>
+
+<div class="connbar">
+  <span><span class="conndot" id="connDot"></span><span id="connText">กำลังเชื่อมต่อ…</span></span>
+  <span class="hubinfo mono" id="hubInfo">Hub — · FW — · Uptime —</span>
+  <div class="lastaction" id="lastAction">ยังไม่ได้ส่งคำสั่งใดในรอบนี้</div>
+</div>
+
+<button class="estop" id="estopBtn" onclick="toggleEstop(this)">EMERGENCY</button>
+<div class="tabs" id="tabs"></div>
+<div id="panes"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+<script>
+const NUM_SETS = 4;
+const BOXES_PER_SET = 9;
+const EFF_OPTS = '<option value="SOLID">Solid</option><option value="BLINK">Blink</option><option value="RAINBOW">Rainbow</option><option value="BREATHE">Breathe</option><option value="STROBE">Strobe</option><option value="CHASE">Chase</option><option value="COLOR_WIPE">Color Wipe</option><option value="TWINKLE">Twinkle</option><option value="THEATER_CHASE">Theater Chase</option><option value="FIRE">Fire</option><option value="OCEAN">Ocean</option><option value="CONFETTI">Confetti</option><option value="METEOR">Meteor</option><option value="AURORA">Aurora</option><option value="LIGHTNING">Lightning</option><option value="PLASMA">Plasma</option><option value="COMET">Comet</option><option value="RIPPLE">Ripple</option><option value="OFF">Off</option>';
+const PALETTE = [
+  '#ff0000','#ff4400','#ff8800','#ffaa00','#ffcc00','#ffff00','#ccff00','#88ff00',
+  '#44ff00','#00ff00','#00ff88','#00ffaa','#00ffcc','#00ffff','#00ccff','#0088ff',
+  '#0044ff','#0000ff','#4400ff','#8800ff','#cc00ff','#ff00ff','#ff00aa','#ff0088',
+  '#ff0044','#ffffff','#ffcccc','#ccffcc','#ccccff','#888888','#000000'
+];
+// สีประจำแต่ละชุด: Set1 ส้ม, Set2 เขียว, Set3 ฟ้า, Set4 ม่วง
+const SET_COLORS = ['#ff8a00', '#22c55e', '#00c8ff', '#a855f7'];
+function setColor(s){ return SET_COLORS[(s - 1) % SET_COLORS.length]; }
+
+// เปลี่ยนสีตัวหนังสือ label (Motor/Smoke) เป็นสีของชุดเมื่อเปิด และเป็นสีขาวเมื่อปิด
+function applyLabelColor(id, on, s){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.color = on ? setColor(s) : '#ffffff';
+}
+
+// สร้าง UI เลือกสี: วงกลมแสดงสีปัจจุบัน (กดเพื่อขยาย/ยุบรายการสี) + รายการสีให้เลือกอยู่ในที่เดียวกันเลย
+function colorPickerHtml(id, defaultColor){
+  let sw = '';
+  for (const c of PALETTE) {
+    sw += '<span class="swatch" style="background:' + c + '" onclick="pickColor(\'' + id + '\',\'' + c + '\')"></span>';
+  }
+  return '<details class="colordd">' +
+           '<summary><span class="swatchbig" id="' + id + '" data-color="' + defaultColor + '" style="background:' + defaultColor + '"></span>Colors</summary>' +
+           '<div class="palette">' + sw + '</div>' +
+         '</details>';
+}
+
+function pickColor(id, color){
+  const el = document.getElementById(id);
+  el.style.background = color;
+  el.dataset.color = color;
+}
+
+function getColor(id){
+  return document.getElementById(id).dataset.color;
+}
+
+// ---- ไฟ RGB1/RGB2: โหมด Manual/Auto (ไล่สลับสี+เอฟเฟกต์เองตามลำดับทุก N วิ) + Sync RGB1=RGB2 ----
+let ledModeState = {};
+let syncState = {};
+
+function ledModeKey(prefix, key, ch){ return prefix + '_' + key + '_' + ch; }
+function syncKey(prefix, key){ return prefix + '_' + key; }
+function idOf(prefix, name, ch, key){ return prefix + name + ch + '_' + key; }
+
+function rgbChannelHtml(prefix, key, ch, defaultColor, sendOnclick){
+  const cId = idOf(prefix, 'c', ch, key);
+  const brId = idOf(prefix, 'bright', ch, key);
+  const bvId = idOf(prefix, 'brightval', ch, key);
+  const eId = idOf(prefix, 'e', ch, key);
+  const modeId = idOf(prefix, 'mode', ch + 'btn', key);
+  const autoId = idOf(prefix, 'autosec', ch, key);
+  return (
+    colorPickerHtml(cId, defaultColor) +
+    '<div class="row"><span>Brightness</span><input type="range" min="0" max="255" value="255" id="' + brId + '" oninput="onBrightness(this)"><span id="' + bvId + '">255</span></div>' +
+    '<div class="row"><select id="' + eId + '" style="width:70%">' + EFF_OPTS + '</select></div>' +
+    '<div class="row"><button class="toggle" id="' + modeId + '" onclick="toggleLedMode(\'' + prefix + '\',\'' + key + '\',' + ch + ')">Manual</button>' +
+      '<span>every</span><input type="number" min="5" value="60" class="miniinput" id="' + autoId + '"><span>s</span>' +
+      '<button class="toggle" onclick="' + sendOnclick + '">Send</button></div>'
+  );
+}
+
+function toggleLedMode(prefix, key, ch){
+  const modeId = idOf(prefix, 'mode', ch + 'btn', key);
+  const btn = document.getElementById(modeId);
+  const mk = ledModeKey(prefix, key, ch);
+  const next = (ledModeState[mk] === 'AUTO') ? 'MANUAL' : 'AUTO';
+  ledModeState[mk] = next;
+  if (btn) {
+    btn.textContent = next === 'AUTO' ? 'Auto' : 'Manual';
+    btn.classList.toggle('mode-auto', next === 'AUTO');
+  }
+}
+
+function onSyncToggle(prefix, key){
+  const checked = document.getElementById(prefix + 'sync_' + key).checked;
+  syncState[syncKey(prefix, key)] = checked;
+  const block = document.getElementById(prefix + 'rgb2block_' + key);
+  if (block) block.classList.toggle('hidden', checked);
+}
+
+// ---- ควัน: พรีเซ็ตจังหวะเปิด/ปิด + กำหนดเอง + โหมด Manual/Auto (ไล่สลับพรีเซ็ตเองทุก N วิ) ----
+const SMOKE_PRESETS = { solid: [60000, 0], quick: [500, 500], medium: [1500, 500], slow: [3000, 1000] };
+let smokeModeState = {};
+
+function smokePatternHtml(prefix, key, sendOnclick){
+  const presetId = prefix + 'fogpreset_' + key;
+  const customRowId = prefix + 'fogcustomrow_' + key;
+  const onId = prefix + 'fogon_' + key;
+  const offId = prefix + 'fogoff_' + key;
+  const modeId = prefix + 'fogmodebtn_' + key;
+  const autoId = prefix + 'fogautosec_' + key;
+  return (
+    '<div class="row"><span>Pattern</span><select id="' + presetId + '" onchange="onSmokePresetChange(\'' + prefix + '\',\'' + key + '\')">' +
+      '<option value="solid">Solid ON (ติดค้างตลอด)</option>' +
+      '<option value="quick">Quick 0.5/0.5s</option>' +
+      '<option value="medium" selected>Medium 1.5/0.5s</option>' +
+      '<option value="slow">Slow 3/1s</option>' +
+      '<option value="custom">Custom</option>' +
+    '</select></div>' +
+    '<div class="row hidden" id="' + customRowId + '"><span>On</span><input type="number" min="0" value="1500" class="miniinput" id="' + onId + '"><span>Off</span><input type="number" min="0" value="500" class="miniinput" id="' + offId + '"><span>ms</span></div>' +
+    '<div class="row"><button class="toggle" id="' + modeId + '" onclick="toggleSmokeMode(\'' + prefix + '\',\'' + key + '\')">Manual</button>' +
+      '<span>every</span><input type="number" min="5" value="60" class="miniinput" id="' + autoId + '"><span>s</span>' +
+      '<button class="toggle" onclick="' + sendOnclick + '">Send</button></div>'
+  );
+}
+
+function onSmokePresetChange(prefix, key){
+  const sel = document.getElementById(prefix + 'fogpreset_' + key).value;
+  const customRow = document.getElementById(prefix + 'fogcustomrow_' + key);
+  if (sel === 'custom') {
+    customRow.classList.remove('hidden');
+  } else {
+    customRow.classList.add('hidden');
+    const [on, off] = SMOKE_PRESETS[sel];
+    document.getElementById(prefix + 'fogon_' + key).value = on;
+    document.getElementById(prefix + 'fogoff_' + key).value = off;
+  }
+}
+
+function toggleSmokeMode(prefix, key){
+  const btn = document.getElementById(prefix + 'fogmodebtn_' + key);
+  const mk = prefix + '_' + key;
+  const next = (smokeModeState[mk] === 'AUTO') ? 'MANUAL' : 'AUTO';
+  smokeModeState[mk] = next;
+  if (btn) {
+    btn.textContent = next === 'AUTO' ? 'Auto' : 'Manual';
+    btn.classList.toggle('mode-auto', next === 'AUTO');
+  }
+}
+
+function readSmokePattern(prefix, key){
+  const onMs = parseInt(document.getElementById(prefix + 'fogon_' + key).value) || 0;
+  const offMs = parseInt(document.getElementById(prefix + 'fogoff_' + key).value) || 0;
+  const autoSec = parseInt(document.getElementById(prefix + 'fogautosec_' + key).value) || 60;
+  const mode = (smokeModeState[prefix + '_' + key] === 'AUTO') ? 'AUTO' : 'MANUAL';
+  return { mode: mode, onMs: onMs, offMs: offMs, autoIntervalMs: autoSec * 1000 };
+}
+
+function getSpeed(key){
+  return (motorSpeed[key] !== undefined) ? motorSpeed[key] : 255;
+}
+
+function updateSliderFill(el){
+  if (!el) return;
+  const min = parseFloat(el.min || 0), max = parseFloat(el.max || 100), val = parseFloat(el.value);
+  const pct = ((val - min) / (max - min)) * 100;
+  el.style.setProperty('--val', pct + '%');
+}
+
+function onBrightness(el){
+  const valSpan = document.getElementById(el.id.replace('bright', 'brightval'));
+  if (valSpan) valSpan.textContent = el.value;
+  updateSliderFill(el);
+}
+
+function buildAll(){
+  let tabsHtml = '<div class="tab" id="tabGrand" onclick="showGrand()">All Sets</div>';
+  for (let s = 1; s <= NUM_SETS; s++) {
+    tabsHtml += '<div class="tab' + (s === 1 ? ' active' : '') + '" id="tab' + s + '" style="--set-color:' + setColor(s) + '" onclick="showSet(' + s + ')">Set ' + s + '</div>';
+  }
+  tabsHtml += '<div class="tab" id="tabStatus" onclick="showStatus()">Status</div>';
+  document.getElementById('tabs').innerHTML = tabsHtml;
+
+  let grandHtml =
+    '<div id="paneAll" class="hidden">' +
+      '<div class="card allrow">' +
+        '<h3>Control All Sets (1-4)</h3>' +
+        '<div class="row"><span id="grandmotorlabel">Motor</span><button class="toggle" id="grandmotorbtn" onclick="sendGrandToggle(\'MOTOR\',this)">OFF</button>' +
+          '<input type="range" min="0" max="255" value="255" id="grandspeed" oninput="onGrandSpeedPreview(this.value)">' +
+          '<span id="grandspeedval">255</span><button class="toggle" onclick="sendGrandSpeed()">Send</button></div>' +
+        '<div class="row"><span id="grandfoglabel">Smoke</span><button class="toggle" id="grandfogbtn" onclick="sendGrandToggle(\'FOG\',this)">OFF</button></div>' +
+        smokePatternHtml('grand', '0', 'sendGrandSmokePattern()') +
+        '<div class="row"><b>RGB1</b><label class="synclabel"><input type="checkbox" id="grandsync_0" onchange="onSyncToggle(\'grand\',\'0\')"> Sync w/ RGB2</label></div>' +
+        rgbChannelHtml('grand', '0', 1, '#ff0000', 'sendGrandLed(1)') +
+        '<div id="grandrgb2block_0">' +
+          '<div class="row"><b>RGB2</b></div>' +
+          rgbChannelHtml('grand', '0', 2, '#00ff00', 'sendGrandLed(2)') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  let panesHtml = grandHtml;
+  for (let s = 1; s <= NUM_SETS; s++) {
+    panesHtml +=
+      '<div id="set' + s + '" class="setpane' + (s === 1 ? '' : ' hidden') + '" style="--set-color:' + setColor(s) + '">' +
+        '<div class="card allrow">' +
+          '<h3>Control All Boxes in Set ' + s + '</h3>' +
+          '<div class="row"><span id="allmotorlabel_' + s + '">Motor</span><button class="toggle" id="allmotorbtn_' + s + '" onclick="sendAll(' + s + ',\'MOTOR\',this)">OFF</button>' +
+            '<input type="range" min="0" max="255" value="255" id="allspeed' + s + '" oninput="onAllSpeedPreview(' + s + ',this.value)">' +
+            '<span id="allspeedval' + s + '">255</span><button class="toggle" onclick="sendAllSpeed(' + s + ')">Send</button></div>' +
+          '<div class="row"><span id="allfoglabel_' + s + '">Smoke</span><button class="toggle" id="allfogbtn_' + s + '" onclick="sendAll(' + s + ',\'FOG\',this)">OFF</button></div>' +
+          smokePatternHtml('all', s, 'sendAllSmokePattern(' + s + ')') +
+          '<div class="row"><b>RGB1</b><label class="synclabel"><input type="checkbox" id="allsync_' + s + '" onchange="onSyncToggle(\'all\',' + s + ')"> Sync w/ RGB2</label></div>' +
+          rgbChannelHtml('all', s, 1, '#ff0000', 'sendAllLed(' + s + ',1)') +
+          '<div id="allrgb2block_' + s + '">' +
+            '<div class="row"><b>RGB2</b></div>' +
+            rgbChannelHtml('all', s, 2, '#00ff00', 'sendAllLed(' + s + ',2)') +
+          '</div>' +
+        '</div>' +
+        '<div class="grid" id="grid' + s + '"></div>' +
+      '</div>';
+  }
+  panesHtml += '<div id="paneStatus" class="hidden"><div class="grid" id="statusGrid"></div></div>';
+  document.getElementById('panes').innerHTML = panesHtml;
+
+  for (let s = 1; s <= NUM_SETS; s++) {
+    let gridHtml = '';
+    for (let b = 1; b <= BOXES_PER_SET; b++) {
+      gridHtml +=
+        '<div class="card" id="box_' + s + '_' + b + '">' +
+          '<h3>Box ' + b + (b === 1 ? ' (Master)' : '') + '</h3>' +
+          '<div class="row"><span id="motorlabel_' + s + '_' + b + '">Motor</span><button class="toggle" id="motorbtn_' + s + '_' + b + '" onclick="sendOne(' + s + ',' + b + ',\'MOTOR\',this)">OFF</button></div>' +
+          '<div class="row"><span>Speed</span><input type="range" min="0" max="255" value="255" id="speed_' + s + '_' + b + '" oninput="onSpeedPreview(' + s + ',' + b + ',this.value)"><span id="speedval_' + s + '_' + b + '">255</span><button class="toggle" onclick="sendSpeed(' + s + ',' + b + ')">Send</button></div>' +
+          '<div class="row"><span id="foglabel_' + s + '_' + b + '">Smoke</span><button class="toggle" id="fogbtn_' + s + '_' + b + '" onclick="sendOne(' + s + ',' + b + ',\'FOG\',this)">OFF</button></div>' +
+          smokePatternHtml('', s + '_' + b, 'sendSmokePattern(' + s + ',' + b + ')') +
+          '<div class="row"><b>RGB1</b><label class="synclabel"><input type="checkbox" id="sync_' + s + '_' + b + '" onchange="onSyncToggle(\'\',\'' + s + '_' + b + '\')"> Sync w/ RGB2</label></div>' +
+          rgbChannelHtml('', s + '_' + b, 1, '#ff0000', 'sendLed(' + s + ',' + b + ',1)') +
+          '<div id="rgb2block_' + s + '_' + b + '">' +
+            '<div class="row"><b>RGB2</b></div>' +
+            rgbChannelHtml('', s + '_' + b, 2, '#00ff00', 'sendLed(' + s + ',' + b + ',2)') +
+          '</div>' +
+        '</div>';
+    }
+    document.getElementById('grid' + s).innerHTML = gridHtml;
+  }
+
+  let statusHtml = '';
+  for (let s = 1; s <= NUM_SETS; s++) {
+    for (let b = 1; b <= BOXES_PER_SET; b++) {
+      statusHtml +=
+        '<div class="card" style="--set-color:' + setColor(s) + '">' +
+          '<h3>Set ' + s + ' / Box ' + b + (b === 1 ? ' (Master)' : '') + '</h3>' +
+          '<div class="row"><span class="status-dot offline" id="statdot_' + s + '_' + b + '"></span><span id="stattxt_' + s + '_' + b + '">Offline</span></div>' +
+        '</div>';
+    }
+  }
+  document.getElementById('statusGrid').innerHTML = statusHtml;
+}
+
+function showSet(n){
+  for (let s = 1; s <= NUM_SETS; s++) {
+    document.getElementById('set' + s).classList.toggle('hidden', s !== n);
+    document.getElementById('tab' + s).classList.toggle('active', s === n);
+  }
+  document.getElementById('paneStatus').classList.add('hidden');
+  document.getElementById('tabStatus').classList.remove('active');
+  document.getElementById('paneAll').classList.add('hidden');
+  document.getElementById('tabGrand').classList.remove('active');
+}
+
+function showStatus(){
+  for (let s = 1; s <= NUM_SETS; s++) {
+    document.getElementById('set' + s).classList.add('hidden');
+    document.getElementById('tab' + s).classList.remove('active');
+  }
+  document.getElementById('paneStatus').classList.remove('hidden');
+  document.getElementById('tabStatus').classList.add('active');
+  document.getElementById('paneAll').classList.add('hidden');
+  document.getElementById('tabGrand').classList.remove('active');
+  refreshOnlineStatus();
+}
+
+function showGrand(){
+  for (let s = 1; s <= NUM_SETS; s++) {
+    document.getElementById('set' + s).classList.add('hidden');
+    document.getElementById('tab' + s).classList.remove('active');
+  }
+  document.getElementById('paneStatus').classList.add('hidden');
+  document.getElementById('tabStatus').classList.remove('active');
+  document.getElementById('paneAll').classList.remove('hidden');
+  document.getElementById('tabGrand').classList.add('active');
+}
+
+// ==================== MQTT (แทนที่ fetch('/api/command') และ fetch('/api/online') เดิม) ====================
+// เพจนี้เป็นหน้าควบคุมส่วนตัวของคุณเอง ต่อ MQTT ตรงจากเบราว์เซอร์ผ่าน WebSocket (wss) ไปยัง broker
+// เดียวกับที่ Hub ใช้ — ห้ามแชร์ไฟล์/ลิงก์นี้ต่อ เพราะมี MQTT password ฝังอยู่ในโค้ด
+const MQTT_HOST = "a46820b006de49bb9da091ac9c8f5b63.s1.eu.hivemq.cloud";
+const MQTT_WSS_PORT = 8884;
+const MQTT_USER = "Electronic_Box";
+const MQTT_PASSWORD = "Electronic_1234";
+const TOPIC_CMD = "electronicbox/hub/cmd";
+const TOPIC_STATUS = "electronicbox/hub/status";
+
+let latestOnline = null; // [set0..3][box0..8] จาก Hub — null จนกว่าจะได้ status ครั้งแรก
+
+function setConn(state, text){
+  const dot = document.getElementById('connDot');
+  const txt = document.getElementById('connText');
+  dot.className = 'conndot' + (state === 'ok' ? ' ok' : state === 'err' ? ' err' : '');
+  txt.textContent = text;
+}
+
+const mqttClient = mqtt.connect("wss://" + MQTT_HOST + ":" + MQTT_WSS_PORT + "/mqtt", {
+  clientId: "webctrl-" + Math.random().toString(36).slice(2, 10),
+  username: MQTT_USER, password: MQTT_PASSWORD,
+  reconnectPeriod: 3000, connectTimeout: 8000, clean: true
+});
+
+mqttClient.on('connect', function(){
+  setConn('ok', 'Connected');
+  mqttClient.subscribe(TOPIC_STATUS);
+});
+mqttClient.on('reconnect', function(){ setConn('warn', 'กำลังเชื่อมต่อ…'); });
+mqttClient.on('close', function(){ setConn('err', 'ตัดการเชื่อมต่อ'); });
+mqttClient.on('error', function(){ setConn('err', 'เชื่อมต่อไม่สำเร็จ'); });
+
+mqttClient.on('message', function(topic, payload){
+  if (topic !== TOPIC_STATUS) return;
+  try {
+    const msg = JSON.parse(payload.toString());
+    if (Array.isArray(msg.online)) latestOnline = msg.online;
+    const h = Math.floor((msg.uptimeSec||0)/3600), m = Math.floor(((msg.uptimeSec||0)%3600)/60), s = (msg.uptimeSec||0)%60;
+    document.getElementById('hubInfo').textContent =
+      'Hub ' + (msg.hubIp||'—') + ' · FW ' + (msg.fw||'—') + ' · Uptime ' + (h>0?h+'h ':'') + m + 'm ' + s + 's';
+    refreshOnlineStatus();
+  } catch(e) { /* ข้อความเสีย ข้ามไป */ }
+});
+
+function refreshOnlineStatus(){
+  if (!latestOnline) return;
+  for (let s = 1; s <= NUM_SETS; s++) {
+    for (let b = 1; b <= BOXES_PER_SET; b++) {
+      const online = !!(latestOnline[s-1] && latestOnline[s-1][b-1]);
+      const dot = document.getElementById('statdot_' + s + '_' + b);
+      const txt = document.getElementById('stattxt_' + s + '_' + b);
+      if (!dot) continue;
+      dot.classList.toggle('online', online);
+      dot.classList.toggle('offline', !online);
+      if (txt) txt.textContent = online ? 'Online' : 'Offline';
+    }
+  }
+}
+
+// ส่งคำสั่ง — เดิม fetch('/api/command') ไปหา Hub ในวง WiFi เดียวกัน เปลี่ยนเป็น publish MQTT
+// ไปหา Hub ผ่านอินเทอร์เน็ตแทน ตัว body ที่ส่งเป็น JSON เดียวกันทุกประการ ไม่ต้องแก้ logic คำสั่งใดๆ เลย
+function post(body){
+  mqttClient.publish(TOPIC_CMD, JSON.stringify(body));
+  const label = (body.cmd === 'ESTOP') ? 'EMERGENCY STOP' :
+    body.cmd + ' → Set ' + body.setId + (body.boxId === 255 ? ' / All boxes' : ' / Box ' + body.boxId);
+  document.getElementById('lastAction').textContent = 'Last sent: ' + label + ' · ' + new Date().toLocaleTimeString();
+}
+
+let motorState = {}, fogState = {}, motorSpeed = {};
+let emergencyActive = false;
+
+// เมื่อ Emergency ทำงานอยู่ ห้ามสั่งงานใดๆ ทั้งสิ้นจนกว่าจะกดปลดล็อก
+function sendOne(s, b, cmd, btn){
+  if (emergencyActive) return;
+  const key = s + '_' + b + '_' + cmd;
+  const cur = cmd === 'MOTOR' ? motorState[key] : fogState[key];
+  const next = !cur;
+  if (cmd === 'MOTOR') motorState[key] = next; else fogState[key] = next;
+  btn.classList.toggle('on', next);
+  btn.textContent = next ? 'ON' : 'OFF';
+  btn.style.color = next ? setColor(s) : '#ffffff';
+  applyLabelColor((cmd === 'MOTOR' ? 'motorlabel_' : 'foglabel_') + s + '_' + b, next, s);
+  const speed = getSpeed(s + '_' + b);
+  post({setId:s, boxId:b, cmd:cmd, motorOn:next, motorSpeed:speed, fogOn:next});
+}
+
+function onSpeedPreview(s, b, v){
+  motorSpeed[s + '_' + b] = parseInt(v);
+  document.getElementById('speedval_' + s + '_' + b).innerText = v;
+  updateSliderFill(document.getElementById('speed_' + s + '_' + b));
+}
+
+function sendSpeed(s, b){
+  if (emergencyActive) return;
+  const speed = getSpeed(s + '_' + b);
+  const on = !!motorState[s + '_' + b + '_MOTOR'];
+  post({setId:s, boxId:b, cmd:'MOTOR', motorOn:on, motorSpeed:speed});
+}
+
+function sendAll(s, cmd, btn){
+  if (emergencyActive) return;
+  const next = !motorState['all_' + s + '_' + cmd];
+  motorState['all_' + s + '_' + cmd] = next;
+  btn.classList.toggle('on', next);
+  btn.textContent = next ? 'ON' : 'OFF';
+  btn.style.color = next ? setColor(s) : '#ffffff';
+  applyLabelColor((cmd === 'MOTOR' ? 'allmotorlabel_' : 'allfoglabel_') + s, next, s);
+  const speed = getSpeed('all_' + s);
+
+  for (let b = 1; b <= BOXES_PER_SET; b++) {
+    const key = s + '_' + b + '_' + cmd;
+    if (cmd === 'MOTOR') motorState[key] = next; else fogState[key] = next;
+    const boxBtn = document.getElementById((cmd === 'MOTOR' ? 'motorbtn_' : 'fogbtn_') + s + '_' + b);
+    if (boxBtn) {
+      boxBtn.classList.toggle('on', next);
+      boxBtn.textContent = next ? 'ON' : 'OFF';
+      boxBtn.style.color = next ? setColor(s) : '#ffffff';
+    }
+    applyLabelColor((cmd === 'MOTOR' ? 'motorlabel_' : 'foglabel_') + s + '_' + b, next, s);
+  }
+
+  post({setId:s, boxId:255, cmd:cmd, motorOn:next, motorSpeed:speed, fogOn:next});
+}
+
+function onAllSpeedPreview(s, v){
+  const speed = parseInt(v);
+  motorSpeed['all_' + s] = speed;
+  document.getElementById('allspeedval' + s).innerText = v;
+  updateSliderFill(document.getElementById('allspeed' + s));
+
+  for (let b = 1; b <= BOXES_PER_SET; b++) {
+    motorSpeed[s + '_' + b] = speed;
+    const slider = document.getElementById('speed_' + s + '_' + b);
+    const val = document.getElementById('speedval_' + s + '_' + b);
+    if (slider) slider.value = speed;
+    if (val) val.innerText = speed;
+    updateSliderFill(slider);
+  }
+}
+
+function sendAllSpeed(s){
+  if (emergencyActive) return;
+  const speed = getSpeed('all_' + s);
+  const on = !!motorState['all_' + s + '_MOTOR'];
+  post({setId:s, boxId:255, cmd:'MOTOR', motorOn:on, motorSpeed:speed});
+}
+
+function sendLed(s, b, ch){
+  if (emergencyActive) return;
+  const key = s + '_' + b;
+  const sync = !!syncState[syncKey('', key)];
+  if (sync && ch === 2) return;
+  const useCh = (sync && ch === 1) ? 'BOTH' : (ch === 1 ? 'RGB1' : 'RGB2');
+  const hex = getColor('c' + ch + '_' + key);
+  const eff = document.getElementById('e' + ch + '_' + key).value;
+  const bright = parseInt(document.getElementById('bright' + ch + '_' + key).value);
+  const r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), bl = parseInt(hex.substr(5,2),16);
+  const mode = (ledModeState[ledModeKey('', key, ch)] === 'AUTO') ? 'AUTO' : 'MANUAL';
+  const autoSec = parseInt(document.getElementById('autosec' + ch + '_' + key).value) || 60;
+  post({setId:s, boxId:b, cmd:'LED', r:r, g:g, b:bl, effect:eff, channel:useCh, brightness:bright, ledMode:mode, ledAutoIntervalMs: autoSec * 1000});
+}
+
+function sendAllLed(s, ch){
+  if (emergencyActive) return;
+  const sync = !!syncState[syncKey('all', s)];
+  if (sync && ch === 2) return;
+  const useCh = (sync && ch === 1) ? 'BOTH' : (ch === 1 ? 'RGB1' : 'RGB2');
+  const hex = getColor('allc' + ch + '_' + s);
+  const eff = document.getElementById('alle' + ch + '_' + s).value;
+  const bright = document.getElementById('allbright' + ch + '_' + s).value;
+  const mode = (ledModeState[ledModeKey('all', s, ch)] === 'AUTO') ? 'AUTO' : 'MANUAL';
+  const autoSec = document.getElementById('allautosec' + ch + '_' + s).value;
+
+  for (let b = 1; b <= BOXES_PER_SET; b++) {
+    const key = s + '_' + b;
+    pickColor('c' + ch + '_' + key, hex);
+    const effEl = document.getElementById('e' + ch + '_' + key);
+    if (effEl) effEl.value = eff;
+    const brightEl = document.getElementById('bright' + ch + '_' + key);
+    if (brightEl) {
+      brightEl.value = bright;
+      updateSliderFill(brightEl);
+      const bv = document.getElementById('brightval' + ch + '_' + key);
+      if (bv) bv.textContent = bright;
+    }
+    ledModeState[ledModeKey('', key, ch)] = mode;
+    const modeBtn = document.getElementById(idOf('', 'mode', ch + 'btn', key));
+    if (modeBtn) { modeBtn.textContent = mode === 'AUTO' ? 'Auto' : 'Manual'; modeBtn.classList.toggle('mode-auto', mode === 'AUTO'); }
+    const autoEl = document.getElementById(idOf('', 'autosec', ch, key));
+    if (autoEl) autoEl.value = autoSec;
+    if (ch === 1) {
+      syncState[syncKey('', key)] = sync;
+      const syncEl = document.getElementById('sync_' + key);
+      if (syncEl) syncEl.checked = sync;
+      const block = document.getElementById('rgb2block_' + key);
+      if (block) block.classList.toggle('hidden', sync);
+    }
+  }
+
+  post({setId:s, boxId:255, cmd:'LED', r:r, g:g, b:bl, effect:eff, channel:useCh, brightness:bright, ledMode:mode, ledAutoIntervalMs: autoSec * 1000});
+}
+</script>
+<script>
+// ค่า r/g/bl ที่ sendAllLed ใช้ต้องคำนวณจาก hex ก่อนเรียก post() — เติมตรงนี้ (ไม่กระทบ logic เดิม)
+const _origSendAllLed = sendAllLed;
+sendAllLed = function(s, ch){
+  if (emergencyActive) return;
+  const sync = !!syncState[syncKey('all', s)];
+  if (sync && ch === 2) return;
+  const hex = getColor('allc' + ch + '_' + s);
+  window.r = parseInt(hex.substr(1,2),16); window.g = parseInt(hex.substr(3,2),16); window.bl = parseInt(hex.substr(5,2),16);
+  _origSendAllLed(s, ch);
+};
+</script>
+<script>
+function sendSmokePattern(s, b){
+  if (emergencyActive) return;
+  const key = s + '_' + b;
+  const p = readSmokePattern('', key);
+  fogState[key + '_FOG'] = true;
+  const btn = document.getElementById('fogbtn_' + key);
+  if (btn) { btn.classList.add('on'); btn.textContent = 'ON'; btn.style.color = setColor(s); }
+  applyLabelColor('foglabel_' + key, true, s);
+  post({setId:s, boxId:b, cmd:'FOG', fogOn:true, smokeMode:p.mode, smokeOnMs:p.onMs, smokeOffMs:p.offMs, smokeAutoIntervalMs:p.autoIntervalMs});
+}
+
+function sendAllSmokePattern(s){
+  if (emergencyActive) return;
+  const p = readSmokePattern('all', s);
+  const presetVal = document.getElementById('allfogpreset_' + s).value;
+  const customHidden = document.getElementById('allfogcustomrow_' + s).classList.contains('hidden');
+  const mode = smokeModeState['all_' + s] === 'AUTO' ? 'AUTO' : 'MANUAL';
+
+  for (let b = 1; b <= BOXES_PER_SET; b++) {
+    const key = s + '_' + b;
+    const presetEl = document.getElementById('fogpreset_' + key);
+    if (presetEl) presetEl.value = presetVal;
+    document.getElementById('fogcustomrow_' + key).classList.toggle('hidden', customHidden);
+    document.getElementById('fogon_' + key).value = p.onMs;
+    document.getElementById('fogoff_' + key).value = p.offMs;
+    document.getElementById('fogautosec_' + key).value = document.getElementById('allfogautosec_' + s).value;
+    smokeModeState['_' + key] = mode;
+    const modeBtn = document.getElementById('fogmodebtn_' + key);
+    if (modeBtn) { modeBtn.textContent = mode === 'AUTO' ? 'Auto' : 'Manual'; modeBtn.classList.toggle('mode-auto', mode === 'AUTO'); }
+    fogState[key + '_FOG'] = true;
+    const btn = document.getElementById('fogbtn_' + key);
+    if (btn) { btn.classList.add('on'); btn.textContent = 'ON'; btn.style.color = setColor(s); }
+    applyLabelColor('foglabel_' + key, true, s);
+  }
+
+  fogState['all_' + s + '_FOG'] = true;
+  const allBtn = document.getElementById('allfogbtn_' + s);
+  if (allBtn) { allBtn.classList.add('on'); allBtn.textContent = 'ON'; allBtn.style.color = setColor(s); }
+  applyLabelColor('allfoglabel_' + s, true, s);
+
+  post({setId:s, boxId:255, cmd:'FOG', fogOn:true, smokeMode:p.mode, smokeOnMs:p.onMs, smokeOffMs:p.offMs, smokeAutoIntervalMs:p.autoIntervalMs});
+}
+
+// ==================== แผง "All Sets": สั่งจุดเดียวกระจายไปทั้ง 4 ชุดพร้อมกัน ====================
+function sendGrandToggle(cmd, btn){
+  if (emergencyActive) return;
+  const next = !motorState['grand_' + cmd];
+  motorState['grand_' + cmd] = next;
+  btn.classList.toggle('on', next);
+  btn.textContent = next ? 'ON' : 'OFF';
+  const labelId = (cmd === 'MOTOR') ? 'grandmotorlabel' : 'grandfoglabel';
+  applyLabelColor(labelId, next, 1);
+
+  for (let s = 1; s <= NUM_SETS; s++) {
+    const curSetOn = !!motorState['all_' + s + '_' + cmd];
+    if (curSetOn === next) continue;
+    const setBtn = document.getElementById((cmd === 'MOTOR' ? 'allmotorbtn_' : 'allfogbtn_') + s);
+    if (setBtn) sendAll(s, cmd, setBtn);
+  }
+}
+
+function onGrandSpeedPreview(v){
+  motorSpeed['grand'] = parseInt(v);
+  document.getElementById('grandspeedval').innerText = v;
+  updateSliderFill(document.getElementById('grandspeed'));
+  for (let s = 1; s <= NUM_SETS; s++) onAllSpeedPreview(s, v);
+}
+
+function sendGrandSpeed(){
+  if (emergencyActive) return;
+  for (let s = 1; s <= NUM_SETS; s++) sendAllSpeed(s);
+}
+
+function sendGrandLed(ch){
+  if (emergencyActive) return;
+  const sync = !!syncState[syncKey('grand', '0')];
+  if (sync && ch === 2) return;
+  const hex = getColor('grandc' + ch + '_0');
+  const eff = document.getElementById('grande' + ch + '_0').value;
+  const bright = document.getElementById('grandbright' + ch + '_0').value;
+  const mode = (ledModeState[ledModeKey('grand', '0', ch)] === 'AUTO') ? 'AUTO' : 'MANUAL';
+  const autoSec = document.getElementById('grandautosec' + ch + '_0').value;
+
+  for (let s = 1; s <= NUM_SETS; s++) {
+    pickColor('allc' + ch + '_' + s, hex);
+    const effEl = document.getElementById('alle' + ch + '_' + s);
+    if (effEl) effEl.value = eff;
+    const brightEl = document.getElementById('allbright' + ch + '_' + s);
+    if (brightEl) {
+      brightEl.value = bright;
+      updateSliderFill(brightEl);
+      const bv = document.getElementById('allbrightval' + ch + '_' + s);
+      if (bv) bv.textContent = bright;
+    }
+    ledModeState[ledModeKey('all', s, ch)] = mode;
+    const modeBtn = document.getElementById(idOf('all', 'mode', ch + 'btn', s));
+    if (modeBtn) { modeBtn.textContent = mode === 'AUTO' ? 'Auto' : 'Manual'; modeBtn.classList.toggle('mode-auto', mode === 'AUTO'); }
+    const autoEl = document.getElementById(idOf('all', 'autosec', ch, s));
+    if (autoEl) autoEl.value = autoSec;
+    if (ch === 1) {
+      syncState[syncKey('all', s)] = sync;
+      const syncEl = document.getElementById('allsync_' + s);
+      if (syncEl) syncEl.checked = sync;
+      const block = document.getElementById('allrgb2block_' + s);
+      if (block) block.classList.toggle('hidden', sync);
+    }
+    sendAllLed(s, ch);
+  }
+}
+
+function sendGrandSmokePattern(){
+  if (emergencyActive) return;
+  const p = readSmokePattern('grand', '0');
+  const presetVal = document.getElementById('grandfogpreset_0').value;
+  const customHidden = document.getElementById('grandfogcustomrow_0').classList.contains('hidden');
+  const mode = smokeModeState['grand_0'] === 'AUTO' ? 'AUTO' : 'MANUAL';
+  const autoSecVal = document.getElementById('grandfogautosec_0').value;
+
+  for (let s = 1; s <= NUM_SETS; s++) {
+    const presetEl = document.getElementById('allfogpreset_' + s);
+    if (presetEl) presetEl.value = presetVal;
+    document.getElementById('allfogcustomrow_' + s).classList.toggle('hidden', customHidden);
+    document.getElementById('allfogon_' + s).value = p.onMs;
+    document.getElementById('allfogoff_' + s).value = p.offMs;
+    document.getElementById('allfogautosec_' + s).value = autoSecVal;
+    smokeModeState['all_' + s] = mode;
+    const modeBtn = document.getElementById('allfogmodebtn_' + s);
+    if (modeBtn) { modeBtn.textContent = mode === 'AUTO' ? 'Auto' : 'Manual'; modeBtn.classList.toggle('mode-auto', mode === 'AUTO'); }
+    sendAllSmokePattern(s);
+  }
+}
+
+// กด 1 ครั้ง = ล็อกฉุกเฉิน (ปุ่มแดง, สั่งงานอะไรไม่ได้เลยจนกว่าจะปลด)
+// กดอีกครั้ง = ปลดล็อก (ปุ่มกลับเป็นสีเทาเข้ม, สั่งงานได้ตามปกติ)
+function toggleEstop(btn){
+  const activating = !emergencyActive;
+  if (activating) {
+    for (let s = 1; s <= NUM_SETS; s++) post({setId:s, boxId:255, cmd:'ESTOP'});
+  }
+  emergencyActive = activating;
+  btn.classList.toggle('active', emergencyActive);
+}
+
+buildAll();
+document.querySelectorAll('input[type=range]').forEach(updateSliderFill);
+
+// เปลี่ยนคำในหน้าเว็บทุกจุดจาก "Smoke" ให้ถูกต้อง (แถบด้านบนคุมด้วย CSS/label อยู่แล้วในโค้ดนี้)
+document.querySelectorAll('.card h3, .row span').forEach(function(el){
+  if (el.textContent === 'Fog') el.textContent = 'Smoke';
+});
+
+// ลงทะเบียน service worker เพื่อให้เบราว์เซอร์/PWABuilder มองว่าเพจนี้ "ติดตั้งเป็นแอปได้" (installable PWA)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
