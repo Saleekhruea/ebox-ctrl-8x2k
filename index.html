@@ -51,16 +51,19 @@
   .hidden{display:none}
 
   /* วงกลมแสดงสีปัจจุบัน + เป็นตัวกดเปิด/ปิดรายการสี ในตัวเดียวกัน (ไม่ใช้ native color picker ของเครื่องแล้ว) */
-  .swatchbig{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);display:inline-block;vertical-align:middle;flex-shrink:0}
-  .palette{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 2px}
-  .swatch{width:18px;height:18px;border-radius:50%;border:1px solid var(--border);cursor:pointer;flex-shrink:0}
+  .swatchbig{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:inline-block;vertical-align:middle;flex-shrink:0}
+  .palette{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+  .swatch{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);cursor:pointer;flex-shrink:0}
+  .swatch.selected{border-color:#fff;box-shadow:0 0 0 2px var(--set-color, var(--accent))}
 
   .colordd{margin:4px 0}
   .colordd summary{cursor:pointer;color:var(--set-color, var(--accent));font-size:14px;list-style:none;display:flex;align-items:center;gap:6px}
   .colordd summary::-webkit-details-marker{display:none}
 
   /* สไลด์บาร์: ส่วนที่เลื่อนผ่านแล้วเป็นสีส้ม (--accent) ส่วนที่เหลือเป็นสีเข้ม (--panel2) ตามค่าปัจจุบัน */
-  input[type=range]{-webkit-appearance:none;appearance:none;width:90px;height:6px;background:transparent;outline:none;flex-shrink:0}
+  /* accent-color เป็นตัวสำรอง กรณีเบราว์เซอร์/WebView บางรุ่นไม่รองรับการปรับแต่ง track ผ่าน pseudo-element ด้านล่าง
+     แล้วดึงสีธีมของระบบ (เช่น แดง/น้ำเงิน) มาแสดงแทน accent-color จะบังคับให้เป็นสีส้ม/สีชุดที่ถูกต้องแทน */
+  input[type=range]{-webkit-appearance:none;appearance:none;width:90px;height:6px;background:transparent;outline:none;flex-shrink:0;accent-color:var(--set-color, var(--accent))}
   input[type=range]::-webkit-slider-runnable-track{
     height:6px;border-radius:3px;
     background:linear-gradient(to right, var(--set-color, var(--accent)) 0%, var(--set-color, var(--accent)) var(--val,100%), var(--panel2) var(--val,100%), var(--panel2) 100%);
@@ -125,10 +128,12 @@ function applyLabelColor(id, on, s){
 }
 
 // สร้าง UI เลือกสี: วงกลมแสดงสีปัจจุบัน (กดเพื่อขยาย/ยุบรายการสี) + รายการสีให้เลือกอยู่ในที่เดียวกันเลย
+// แต่ละสวอตช์มี data-color ของตัวเอง + คลาส "selected" แสดงกรอบขาวรอบสีที่กำลังเลือกอยู่ ป้องกันกดพลาดแล้วไม่รู้ตัว
 function colorPickerHtml(id, defaultColor){
   let sw = '';
   for (const c of PALETTE) {
-    sw += '<span class="swatch" style="background:' + c + '" onclick="pickColor(\'' + id + '\',\'' + c + '\')"></span>';
+    const isSel = c.toLowerCase() === defaultColor.toLowerCase();
+    sw += '<span class="swatch' + (isSel ? ' selected' : '') + '" data-color="' + c + '" style="background:' + c + '" onclick="pickColor(\'' + id + '\',\'' + c + '\',this)"></span>';
   }
   return '<details class="colordd">' +
            '<summary><span class="swatchbig" id="' + id + '" data-color="' + defaultColor + '" style="background:' + defaultColor + '"></span>Colors</summary>' +
@@ -136,10 +141,14 @@ function colorPickerHtml(id, defaultColor){
          '</details>';
 }
 
-function pickColor(id, color){
+function pickColor(id, color, swatchEl){
   const el = document.getElementById(id);
   el.style.background = color;
   el.dataset.color = color;
+  if (swatchEl && swatchEl.parentElement) {
+    swatchEl.parentElement.querySelectorAll('.swatch.selected').forEach((s) => s.classList.remove('selected'));
+    swatchEl.classList.add('selected');
+  }
 }
 
 function getColor(id){
@@ -166,7 +175,7 @@ function rgbChannelHtml(prefix, key, ch, defaultColor, sendOnclick){
     '<div class="row"><span>Brightness</span><input type="range" min="0" max="255" value="255" id="' + brId + '" oninput="onBrightness(this)"><span id="' + bvId + '">255</span></div>' +
     '<div class="row"><select id="' + eId + '" style="width:70%">' + EFF_OPTS + '</select></div>' +
     '<div class="row"><button class="toggle" id="' + modeId + '" onclick="toggleLedMode(\'' + prefix + '\',\'' + key + '\',' + ch + ')">Manual</button>' +
-      '<span>every</span><input type="number" min="5" value="60" class="miniinput" id="' + autoId + '"><span>s</span>' +
+      '<span>every</span><input type="number" min="5" value="5" class="miniinput" id="' + autoId + '"><span>s</span>' +
       '<button class="toggle" onclick="' + sendOnclick + '">Send</button></div>'
   );
 }
@@ -211,7 +220,7 @@ function smokePatternHtml(prefix, key, sendOnclick){
     '</select></div>' +
     '<div class="row hidden" id="' + customRowId + '"><span>On</span><input type="number" min="0" value="1500" class="miniinput" id="' + onId + '"><span>Off</span><input type="number" min="0" value="500" class="miniinput" id="' + offId + '"><span>ms</span></div>' +
     '<div class="row"><button class="toggle" id="' + modeId + '" onclick="toggleSmokeMode(\'' + prefix + '\',\'' + key + '\')">Manual</button>' +
-      '<span>every</span><input type="number" min="5" value="60" class="miniinput" id="' + autoId + '"><span>s</span>' +
+      '<span>every</span><input type="number" min="5" value="5" class="miniinput" id="' + autoId + '"><span>s</span>' +
       '<button class="toggle" onclick="' + sendOnclick + '">Send</button></div>'
   );
 }
@@ -243,7 +252,7 @@ function toggleSmokeMode(prefix, key){
 function readSmokePattern(prefix, key){
   const onMs = parseInt(document.getElementById(prefix + 'fogon_' + key).value) || 0;
   const offMs = parseInt(document.getElementById(prefix + 'fogoff_' + key).value) || 0;
-  const autoSec = parseInt(document.getElementById(prefix + 'fogautosec_' + key).value) || 60;
+  const autoSec = parseInt(document.getElementById(prefix + 'fogautosec_' + key).value) || 5;
   const mode = (smokeModeState[prefix + '_' + key] === 'AUTO') ? 'AUTO' : 'MANUAL';
   return { mode: mode, onMs: onMs, offMs: offMs, autoIntervalMs: autoSec * 1000 };
 }
@@ -542,7 +551,7 @@ function sendLed(s, b, ch){
   const bright = parseInt(document.getElementById('bright' + ch + '_' + key).value);
   const r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), bl = parseInt(hex.substr(5,2),16);
   const mode = (ledModeState[ledModeKey('', key, ch)] === 'AUTO') ? 'AUTO' : 'MANUAL';
-  const autoSec = parseInt(document.getElementById('autosec' + ch + '_' + key).value) || 60;
+  const autoSec = parseInt(document.getElementById('autosec' + ch + '_' + key).value) || 5;
   post({setId:s, boxId:b, cmd:'LED', r:r, g:g, b:bl, effect:eff, channel:useCh, brightness:bright, ledMode:mode, ledAutoIntervalMs: autoSec * 1000});
 }
 

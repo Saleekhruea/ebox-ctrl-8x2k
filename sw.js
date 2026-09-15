@@ -1,7 +1,7 @@
 // Service worker ของ Electronic Box Control
 // หน้าที่เดียว: cache ไฟล์เปลือกแอป (HTML/manifest/icons) ไว้ เพื่อให้เปิดแอปได้ทันทีแม้เน็ตช้า/หลุดชั่วคราว
 // ไม่ยุ่งกับการเชื่อมต่อ MQTT (WebSocket) เพราะ service worker ดัก fetch() ปกติเท่านั้น ไม่ดัก WebSocket
-const CACHE_NAME = 'ebox-control-shell-v2';
+const CACHE_NAME = 'ebox-control-shell-v3';
 const SHELL_FILES = ['./', './manifest.json', './icon-192.png', './icon-512.png', './icon-512-maskable.png'];
 
 self.addEventListener('install', (event) => {
