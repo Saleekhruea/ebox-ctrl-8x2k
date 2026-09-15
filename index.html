@@ -60,24 +60,16 @@
   .colordd summary{cursor:pointer;color:var(--set-color, var(--accent));font-size:14px;list-style:none;display:flex;align-items:center;gap:6px}
   .colordd summary::-webkit-details-marker{display:none}
 
-  /* สไลด์บาร์: บาง WebView ของ Android (เช่นในแอปที่แพ็กจาก PWA) ไม่ยอมให้ปรับสี track ของ <input type=range>
-     ผ่าน CSS ปกติ (::-webkit-slider-runnable-track หรือ accent-color) แล้วดึงสีธีมระบบ (เช่น แดง) มาทับเอง
-     วิธีแก้ที่ชัวร์ 100% ทุกเบราว์เซอร์/ทุก WebView คือไม่พึ่ง track ของ native input เลย — วาดแถบพื้นหลัง (เทา)
-     และแถบที่เลื่อนผ่านแล้ว (สีส้ม/สีชุด) เป็น <span> ของเราเองซ้อนอยู่ข้างล่าง แล้วปล่อยให้ input โปร่งใส
-     ทำหน้าที่แค่รับการลาก + โชว์ปุ่มกลม (thumb) ซึ่งสไตล์ผ่าน pseudo-element ยังใช้ได้ปกติทุกเครื่อง */
+  /* สไลด์บาร์: WebView ของ Android บางเครื่องไม่ยอมให้ปรับสี track/thumb ของ <input type=range> เลยไม่ว่าจะลองวิธีไหน
+     (::-webkit-slider-runnable-track, accent-color, หรือซ้อน div ไว้ข้างล่างแล้วทำ track โปร่งใส — ยังทะลุออกมาเป็นสีแดงของธีมระบบอยู่ดี)
+     ทางแก้ที่ชัวร์ที่สุดคือทำให้ input ทั้งตัว "มองไม่เห็น" ไปเลยด้วย opacity:0 (คุณสมบัตินี้เบราว์เซอร์ทุกตัวเคารพเหมือนกันหมด
+     ไม่ใช่สไตล์เฉพาะของ slider ที่อาจถูกเมินได้) แล้ววาดแถบพื้นหลัง/แถบสีที่เลื่อนผ่านแล้ว/ปุ่มกลม (thumb) เป็น span ของเราเอง
+     ซ้อนอยู่ข้างล่างแทนทั้งหมด — input ที่มองไม่เห็นยังทำหน้าที่รับการลากนิ้วและยิง oninput ตามปกติ โค้ด JS ส่วนอื่นไม่ต้องแก้อะไรเลย */
   .slider-wrap{position:relative;display:inline-block;width:90px;height:20px;vertical-align:middle;flex-shrink:0}
   .slider-track-bg{position:absolute;left:0;right:0;top:50%;margin-top:-3px;height:6px;border-radius:3px;background:var(--panel2);pointer-events:none}
   .slider-track-fill{position:absolute;left:0;top:50%;margin-top:-3px;height:6px;border-radius:3px;background:var(--set-color, var(--accent));pointer-events:none;width:100%}
-  .slider-wrap input[type=range]{position:absolute;left:0;top:0;width:100%;height:100%;margin:0;-webkit-appearance:none;appearance:none;background:transparent;outline:none}
-  input[type=range]::-webkit-slider-runnable-track{background:transparent;height:6px}
-  input[type=range]::-moz-range-track{background:transparent;height:6px;border:none}
-  input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
-    background:var(--set-color, var(--accent));border:2px solid #fff;cursor:pointer;margin-top:-6px;position:relative;z-index:2;
-  }
-  input[type=range]::-moz-range-thumb{
-    width:18px;height:18px;border-radius:50%;background:var(--set-color, var(--accent));border:2px solid #fff;cursor:pointer;position:relative;z-index:2;
-  }
+  .slider-thumb{position:absolute;top:50%;left:100%;width:18px;height:18px;margin-top:-9px;margin-left:-9px;border-radius:50%;background:var(--set-color, var(--accent));border:2px solid #fff;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .slider-wrap input[type=range]{position:absolute;left:0;top:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
 
   /* แท็บ Status: จุดสีบอกว่ากล่องนั้นออนไลน์ (เขียว) หรือออฟไลน์ (เทา) อยู่ */
   .status-dot{width:12px;height:12px;border-radius:50%;display:inline-block;background:#555;flex-shrink:0}
@@ -171,7 +163,7 @@ function rgbChannelHtml(prefix, key, ch, defaultColor, sendOnclick){
   const autoId = idOf(prefix, 'autosec', ch, key);
   return (
     colorPickerHtml(cId, defaultColor) +
-    '<div class="row"><span>Brightness</span><span class="slider-wrap"><span class="slider-track-bg"></span><span class="slider-track-fill"></span><input type="range" min="0" max="255" value="255" id="' + brId + '" oninput="onBrightness(this)"></span><span id="' + bvId + '">255</span></div>' +
+    '<div class="row"><span>Brightness</span><span class="slider-wrap"><span class="slider-track-bg"></span><span class="slider-track-fill"></span><span class="slider-thumb"></span><input type="range" min="0" max="255" value="255" id="' + brId + '" oninput="onBrightness(this)"></span><span id="' + bvId + '">255</span></div>' +
     '<div class="row"><select id="' + eId + '" style="width:70%">' + EFF_OPTS + '</select></div>' +
     '<div class="row"><button class="toggle" id="' + modeId + '" onclick="toggleLedMode(\'' + prefix + '\',\'' + key + '\',' + ch + ')">Manual</button>' +
       '<span>every</span><input type="number" min="5" value="5" class="miniinput" id="' + autoId + '"><span>s</span>' +
@@ -265,10 +257,13 @@ function updateSliderFill(el){
   const min = parseFloat(el.min || 0), max = parseFloat(el.max || 100), val = parseFloat(el.value);
   const pct = ((val - min) / (max - min)) * 100;
   el.style.setProperty('--val', pct + '%');
-  // แถบสีจริงที่มองเห็นคือ .slider-track-fill (span พี่น้องของ input) ไม่ใช่ track ของ input เอง — ดูคอมเมนต์ที่ CSS ด้านบน
+  // input ตัวจริงมองไม่เห็น (opacity:0) — .slider-track-fill กับ .slider-thumb คือสิ่งที่แสดงผลจริงบนจอ ดูคอมเมนต์ที่ CSS ด้านบน
   const wrap = el.closest('.slider-wrap');
-  const fill = wrap ? wrap.querySelector('.slider-track-fill') : null;
+  if (!wrap) return;
+  const fill = wrap.querySelector('.slider-track-fill');
+  const thumb = wrap.querySelector('.slider-thumb');
   if (fill) fill.style.width = pct + '%';
+  if (thumb) thumb.style.left = pct + '%';
 }
 
 function onBrightness(el){
@@ -290,7 +285,7 @@ function buildAll(){
       '<div class="card allrow">' +
         '<h3>Control All Sets (1-4)</h3>' +
         '<div class="row"><span id="grandmotorlabel">Motor</span><button class="toggle" id="grandmotorbtn" onclick="sendGrandToggle(\'MOTOR\',this)">OFF</button>' +
-          '<span class="slider-wrap"><span class="slider-track-bg"></span><span class="slider-track-fill"></span><input type="range" min="0" max="255" value="255" id="grandspeed" oninput="onGrandSpeedPreview(this.value)"></span>' +
+          '<span class="slider-wrap"><span class="slider-track-bg"></span><span class="slider-track-fill"></span><span class="slider-thumb"></span><input type="range" min="0" max="255" value="255" id="grandspeed" oninput="onGrandSpeedPreview(this.value)"></span>' +
           '<span id="grandspeedval">255</span><button class="toggle" onclick="sendGrandSpeed()">Send</button></div>' +
         '<div class="row"><span id="grandfoglabel">Smoke</span><button class="toggle" id="grandfogbtn" onclick="sendGrandToggle(\'FOG\',this)">OFF</button></div>' +
         smokePatternHtml('grand', '0', 'sendGrandSmokePattern()') +
@@ -310,7 +305,7 @@ function buildAll(){
         '<div class="card allrow">' +
           '<h3>Control All Boxes in Set ' + s + '</h3>' +
           '<div class="row"><span id="allmotorlabel_' + s + '">Motor</span><button class="toggle" id="allmotorbtn_' + s + '" onclick="sendAll(' + s + ',\'MOTOR\',this)">OFF</button>' +
-            '<span class="slider-wrap"><span class="slider-track-bg"></span><span class="slider-track-fill"></span><input type="range" min="0" max="255" value="255" id="allspeed' + s + '" oninput="onAllSpeedPreview(' + s + ',this.value)"></span>' +
+            '<span class="slider-wrap"><span class="slider-track-bg"></span><span class="slider-track-fill"></span><span class="slider-thumb"></span><input type="range" min="0" max="255" value="255" id="allspeed' + s + '" oninput="onAllSpeedPreview(' + s + ',this.value)"></span>' +
             '<span id="allspeedval' + s + '">255</span><button class="toggle" onclick="sendAllSpeed(' + s + ')">Send</button></div>' +
           '<div class="row"><span id="allfoglabel_' + s + '">Smoke</span><button class="toggle" id="allfogbtn_' + s + '" onclick="sendAll(' + s + ',\'FOG\',this)">OFF</button></div>' +
           smokePatternHtml('all', s, 'sendAllSmokePattern(' + s + ')') +
@@ -334,7 +329,7 @@ function buildAll(){
         '<div class="card" id="box_' + s + '_' + b + '">' +
           '<h3>Box ' + b + (b === 1 ? ' (Master)' : '') + '</h3>' +
           '<div class="row"><span id="motorlabel_' + s + '_' + b + '">Motor</span><button class="toggle" id="motorbtn_' + s + '_' + b + '" onclick="sendOne(' + s + ',' + b + ',\'MOTOR\',this)">OFF</button></div>' +
-          '<div class="row"><span>Speed</span><span class="slider-wrap"><span class="slider-track-bg"></span><span class="slider-track-fill"></span><input type="range" min="0" max="255" value="255" id="speed_' + s + '_' + b + '" oninput="onSpeedPreview(' + s + ',' + b + ',this.value)"></span><span id="speedval_' + s + '_' + b + '">255</span><button class="toggle" onclick="sendSpeed(' + s + ',' + b + ')">Send</button></div>' +
+          '<div class="row"><span>Speed</span><span class="slider-wrap"><span class="slider-track-bg"></span><span class="slider-track-fill"></span><span class="slider-thumb"></span><input type="range" min="0" max="255" value="255" id="speed_' + s + '_' + b + '" oninput="onSpeedPreview(' + s + ',' + b + ',this.value)"></span><span id="speedval_' + s + '_' + b + '">255</span><button class="toggle" onclick="sendSpeed(' + s + ',' + b + ')">Send</button></div>' +
           '<div class="row"><span id="foglabel_' + s + '_' + b + '">Smoke</span><button class="toggle" id="fogbtn_' + s + '_' + b + '" onclick="sendOne(' + s + ',' + b + ',\'FOG\',this)">OFF</button></div>' +
           smokePatternHtml('', s + '_' + b, 'sendSmokePattern(' + s + ',' + b + ')') +
           '<div class="row"><b>RGB1</b><label class="synclabel"><input type="checkbox" id="sync_' + s + '_' + b + '" onchange="onSyncToggle(\'\',\'' + s + '_' + b + '\')"> Sync w/ RGB2</label></div>' +
