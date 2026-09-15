@@ -86,12 +86,12 @@
 </head>
 <body>
 <h1>Electronic Box Control</h1>
-<div class="subtitle">Remote · ควบคุมผ่านอินเทอร์เน็ต ไม่ต้องอยู่ WiFi โรงงาน · <span class="mono" id="uiVersion" style="color:var(--accent)">Build —</span></div>
+<div class="subtitle"><span class="mono" id="uiVersion" style="color:var(--accent)">Build —</span></div>
 
 <div class="connbar">
   <span><span class="conndot" id="connDot"></span><span id="connText">กำลังเชื่อมต่อ…</span></span>
   <span class="hubinfo mono" id="hubInfo">Hub — · FW — · Uptime —</span>
-  <div class="lastaction" id="lastAction">ยังไม่ได้ส่งคำสั่งใดในรอบนี้</div>
+  <div class="lastaction" id="lastAction" style="display:none"></div>
 </div>
 
 <button class="estop" id="estopBtn" onclick="toggleEstop(this)">EMERGENCY</button>
@@ -101,7 +101,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
 <script>
 // เพิ่มเลข build ทุกครั้งที่แก้โค้ด — โชว์ให้เห็นบนหน้าจอเลย เพื่อเช็คว่าเครื่องโหลดโค้ดใหม่จริงหรือยัง (ไม่ใช่ไฟล์เก่าที่ค้างอยู่)
-const UI_BUILD = "2026-09-15.5";
+const UI_BUILD = "2026-09-15.6";
 const NUM_SETS = 4;
 const BOXES_PER_SET = 9;
 const EFF_OPTS = '<option value="SOLID">Solid</option><option value="BLINK">Blink</option><option value="RAINBOW">Rainbow</option><option value="BREATHE">Breathe</option><option value="STROBE">Strobe</option><option value="CHASE">Chase</option><option value="COLOR_WIPE">Color Wipe</option><option value="TWINKLE">Twinkle</option><option value="THEATER_CHASE">Theater Chase</option><option value="FIRE">Fire</option><option value="OCEAN">Ocean</option><option value="CONFETTI">Confetti</option><option value="METEOR">Meteor</option><option value="AURORA">Aurora</option><option value="LIGHTNING">Lightning</option><option value="PLASMA">Plasma</option><option value="COMET">Comet</option><option value="RIPPLE">Ripple</option><option value="OFF">Off</option>';
